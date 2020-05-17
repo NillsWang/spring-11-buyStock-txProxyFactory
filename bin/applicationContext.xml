@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context" 
+    xsi:schemaLocation="
+        http://www.springframework.org/schema/beans 
+        https://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context 
+        https://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!-- spring事务代理工厂  -->
+    <!-- ===============================数据源的注册================================== -->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+
+    <!-- 注册数据源  C3P0数据源-->
+    <bean name="dataSource" 
+    	class="com.mchange.v2.c3p0.ComboPooledDataSource">
+    	<property name="driverClass" value="${jdbc.driver}"/>
+    	<property name="jdbcUrl" value="${jdbc.url}"/>
+    	<property name="user" value="${jdbc.user}"/>
+    	<property name="password" value="${jdbc.password}"/>
+    </bean>
+    
+ 	<!-- ============================普通bean的注册================================ -->
+   	<!-- 注册dao -->
+    <bean name="accountDao" class="com.wmz.dao.AccountDaoImpl">
+    	<property name="dataSource" ref="dataSource"/>
+    </bean>
+    <bean name="stockDao" class="com.wmz.dao.StockDaoImpl">
+    	<property name="dataSource" ref="dataSource"/>
+    </bean>
+    
+   	<!-- 注册service -->
+    <bean name="buyStockService" class="com.wmz.service.BuyStockServiceImpl">
+    	<property name="adao" ref="accountDao"/>
+    	<property name="sdao" ref="stockDao"/>
+    </bean>
+    
+    <!-- ===========================事务操作=============================== -->
+    <!-- 注册事务管理器 -->
+    <bean name="transactionManager" 
+    	class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+    	<property name="dataSource" ref="dataSource"/>
+    </bean>
+    
+    <!-- 生成Service的事务代理对象 -->
+    <bean id="serviceProxy" 
+    	class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+    	<!-- 获取目标对象 -->
+    	<property name="target" ref="buyStockService"/>
+    	<!-- 获取切面 -->
+    	<property name="transactionManager" ref="transactionManager"></property>
+    	<property name="transactionAttributes">
+    		<props>
+    			<!-- 这里配置的是：在指定的切入点方法上要应用什么事务属性 -->
+    			<prop key="open*">ISOLATION_DEFAULT,PROPAGATION_REQUIRED</prop>
+    			<!-- 
+					-异常：表示发生指定异常后回滚，这时的异常是受查异常    			
+					+异常：表示发生指定异常后提交，这时的异常是运行时异常    			
+    			 -->
+    			<prop key="buyStock">ISOLATION_DEFAULT,PROPAGATION_REQUIRED,-BuyStockException</prop>
+    		</props>
+    	</property>
+    </bean>
+      	
+</beans>
